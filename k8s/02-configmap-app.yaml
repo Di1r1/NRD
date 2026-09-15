@@ -1,0 +1,28 @@
+# Несекретные настройки backend (см. backend/src/main/resources/application.yml,
+# секция app: и spring.datasource.url). Пароль и JWT-секрет — НЕ здесь, они в
+# Secret adminpanel-secrets (см. 01-secret.example.yaml) и подключаются в
+# backend-deployment через env[].valueFrom.secretKeyRef.
+#
+# Пути ниже (scripts-dir, results-dir и т.д.) — относительные ("./data/...") в
+# исходном docker-compose (WORKDIR /app в образе), поэтому итоговый путь внутри
+# контейнера — /app/data/... . В k8s это тот же PVC backend-data, смонтированный
+# в /app/data (см. 04-backend-deployment.yaml) — переносить пути один в один не
+# обязательно, но раз рабочая директория контейнера не меняется (/app), пути
+# остаются теми же, что и в docker-compose.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: adminpanel-backend-config
+  namespace: nrd-business-panel
+data:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/adminpanel"
+  SPRING_DATASOURCE_USERNAME: "adminpanel"
+  APP_SCRIPTS_DIR: "./data/scripts"
+  APP_RESULTS_DIR: "./data/results"
+  APP_UPLOADS_DIR: "./data/uploads"
+  APP_FRONTEND_LOGS_DIR: "./data/logs/frontend"
+  APP_FRONTEND_LOGS_ARCHIVE_DIR: "./data/logs/frontend/archive"
+  APP_BACKEND_LOGS_DIR: "./data/logs/backend"
+  APP_NGINX_LOGS_DIR: "./nginx-logs"
+  APP_JWT_EXPIRATION_MINUTES: "480"
+  APP_FRONTEND_LOG_RETENTION_DAYS: "7"

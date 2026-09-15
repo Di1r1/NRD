@@ -1,0 +1,113 @@
+# Аналог сервиса backend из docker-compose.yml.
+#
+# ВАЖНО — replicas: 1 не случайно, менять на большее число без доработки
+# приложения НЕЛЬЗЯ:
+#   1. Онлайн-статус пользователей хранится в памяти процесса
+#      (ConcurrentHashMap, см. историю чата/README) — при нескольких репликах
+#      каждый под будет видеть только "своих" залогиненных пользователей.
+#   2. Редактирование скриптов (ScriptService.updateContent, /admin/scripts)
+#      пишет файл + .bak прямо на диск тома backend-data — при нескольких
+#      репликах и не-RWX сторе возможны конфликты/гонки записи, а с RWX —
+#      два пода не координируют друг друга при записи одного файла.
+# Если нужна горизонтальная масштабируемость backend — это отдельная задача
+# (вынести онлайн-статус в Redis/БД, сериализовать доступ к файлам скриптов),
+# не часть переноса в k8s как есть.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backend-data
+  namespace: nrd-business-panel
+spec:
+  accessModes: ["ReadWriteOnce"] # один backend-под — как и volume backend_data в docker-compose
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: nrd-business-panel
+spec:
+  selector:
+    app: backend
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: nrd-business-panel
+spec:
+  replicas: 1 # см. предупреждение выше — не увеличивать без доработки приложения
+  strategy:
+    type: Recreate # при 1 реплике и RWO-томе rolling update завис бы (новый под не смог бы примонтировать тот же PVC, пока жив старый)
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          # ЗАМЕНИТЕ на реальный путь до образа в вашем registry (собирается из
+          # backend/Dockerfile, см. README.md в корне репозитория / build_and_export.bat).
+          image: repo.dev002.local/nrd-business-panel/backend:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: adminpanel-backend-config
+          env:
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: adminpanel-secrets
+                  key: POSTGRES_PASSWORD
+            - name: APP_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: adminpanel-secrets
+                  key: APP_JWT_SECRET
+          volumeMounts:
+            - name: backend-data
+              mountPath: /app/data
+            - name: nginx-logs
+              mountPath: /app/nginx-logs
+              readOnly: true # backend только зипует access-логи nginx, не пишет — как и в docker-compose (nginx_logs:/app/nginx-logs:ro)
+          # entrypoint контейнера (docker-entrypoint.sh) сам стартует от root,
+          # делает chown /app/data и передаёт управление java от imени appuser —
+          # поэтому здесь НЕ выставляем runAsNonRoot/runAsUser: это сломало бы
+          # штатный механизм смены пользователя внутри контейнера. Если в
+          # кластере включён Pod Security Admission профиля "restricted",
+          # потребуется либо разрешить исключение для этого namespace, либо
+          # доработать Dockerfile под безусловный non-root запуск.
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 40
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1536Mi
+      volumes:
+        - name: backend-data
+          persistentVolumeClaim:
+            claimName: backend-data
+        - name: nginx-logs
+          persistentVolumeClaim:
+            claimName: nginx-logs

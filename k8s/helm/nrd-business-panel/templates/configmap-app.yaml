@@ -1,0 +1,21 @@
+# Несекретные настройки backend — см. backend/src/main/resources/application.yml
+# в основном репозитории, секция app:. Пароль БД и JWT-секрет — в Secret
+# {{ .Values.secrets.existingSecretName }}, подключаются в deployment-backend.yaml
+# через env[].valueFrom.secretKeyRef.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: adminpanel-backend-config
+  namespace: {{ include "adminpanel.namespace" . }}
+data:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/adminpanel"
+  SPRING_DATASOURCE_USERNAME: "adminpanel"
+  APP_SCRIPTS_DIR: "./data/scripts"
+  APP_RESULTS_DIR: "./data/results"
+  APP_UPLOADS_DIR: "./data/uploads"
+  APP_FRONTEND_LOGS_DIR: "./data/logs/frontend"
+  APP_FRONTEND_LOGS_ARCHIVE_DIR: "./data/logs/frontend/archive"
+  APP_BACKEND_LOGS_DIR: "./data/logs/backend"
+  APP_NGINX_LOGS_DIR: "./nginx-logs"
+  APP_JWT_EXPIRATION_MINUTES: {{ .Values.app.jwtExpirationMinutes | quote }}
+  APP_FRONTEND_LOG_RETENTION_DAYS: {{ .Values.app.frontendLogRetentionDays | quote }}

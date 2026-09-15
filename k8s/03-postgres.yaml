@@ -1,0 +1,83 @@
+# Аналог сервиса postgres из docker-compose.yml. StatefulSet вместо Deployment —
+# у БД должен быть стабильный сетевой идентификатор и ровно один прикреплённый
+# том, который переживает пересоздание пода (в docker-compose это был именованный
+# volume pgdata). StorageClassName ниже не задан намеренно — будет использован
+# StorageClass "по умолчанию" в кластере; если у вас его нет или нужен другой —
+# добавьте storageClassName: <имя> в volumeClaimTemplates.spec.
+#
+# Имя Service ("postgres") совпадает с именем сервиса в docker-compose.yml не
+# случайно — backend обращается по jdbc:postgresql://postgres:5432/adminpanel
+# (см. 02-configmap-app.yaml), как и раньше в docker-сети compose.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: nrd-business-panel
+spec:
+  clusterIP: None # headless — StatefulSet сам следит за identity пода, наружу порт не нужен
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: nrd-business-panel
+spec:
+  serviceName: postgres
+  replicas: 1 # БД в один инстанс — как и в docker-compose; для отказоустойчивости нужна отдельная схема репликации, это не добавлено
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_DB
+              value: adminpanel
+            - name: POSTGRES_USER
+              value: adminpanel
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: adminpanel-secrets
+                  key: POSTGRES_PASSWORD
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "adminpanel"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "adminpanel"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+  volumeClaimTemplates:
+    - metadata:
+        name: pgdata
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi

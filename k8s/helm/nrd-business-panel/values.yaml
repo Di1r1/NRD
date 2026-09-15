@@ -1,0 +1,99 @@
+# Полное описание каждого параметра — в README.md рядом. Здесь только сами
+# значения по умолчанию (рассчитаны на первый запуск/тест, для прод-контура
+# правьте через отдельный values-prod.yaml и `helm install -f values-prod.yaml`).
+
+namespace:
+  create: true
+  name: nrd-business-panel
+
+image:
+  # ЗАМЕНИТЕ registry на реальный, если отличается от repo.dev002.local.
+  registry: repo.dev002.local/nrd-business-panel
+  backend:
+    repository: backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  frontend:
+    repository: frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+
+postgres:
+  image: postgres:16-alpine
+  storage: 10Gi
+  storageClassName: "" # пусто = StorageClass по умолчанию в кластере
+  resources:
+    requests: { cpu: 250m, memory: 256Mi }
+    limits: { memory: 1Gi }
+
+backend:
+  # ВАЖНО: не увеличивайте без доработки приложения — онлайн-статус
+  # пользователей живёт в памяти процесса, редактирование скриптов пишет
+  # файл+.bak прямо на диск тома. Подробности и путь к масштабированию — в
+  # README.md, раздел "Масштабирование backend".
+  replicaCount: 1
+  storage: 5Gi
+  storageClassName: ""
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { memory: 1536Mi }
+  podDisruptionBudget:
+    enabled: false # включайте только вместе с увеличением replicaCount
+    maxUnavailable: 1
+
+web:
+  replicaCount: 1
+  resources:
+    requests: { cpu: 100m, memory: 64Mi }
+    limits: { memory: 256Mi }
+  autoscaling:
+    # Требует настроенного ReadWriteMany storageClassName у nginxLogs ниже —
+    # без него дополнительные поды web не смогут примонтировать том логов на
+    # другом узле. См. README.md, раздел "HPA для web".
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
+  podDisruptionBudget:
+    enabled: false
+    maxUnavailable: 1
+
+nginxLogs:
+  storage: 5Gi
+  # ОБЯЗАТЕЛЕН ReadWriteMany storage class — впишите имя вашего RWX-класса
+  # (NFS/CephFS/EFS/Azure Files и т.п.). Пусто = StorageClass по умолчанию,
+  # который в большинстве кластеров НЕ поддерживает RWX — PVC не создастся.
+  storageClassName: ""
+
+ingress:
+  enabled: true
+  className: nginx
+  host: nrd-business-panel.dev002.local # ЗАМЕНИТЕ на реальный домен
+  tlsSecretName: adminpanel-tls
+  proxyBodySize: 25m
+  extraAnnotations: {}
+
+# Секреты (пароль БД, JWT-секрет). По умолчанию чарт НИЧЕГО не создаёт —
+# секрет заводится вручную командой (см. README.md), как и раньше в проекте
+# (см. .env.example в корне репозитория, где та же логика "секреты — не в git").
+# Если создаёте секрет через чарт (например, из CI, где значения приходят из
+# защищённых CI/CD-переменных, а не коммитятся) — выставьте secrets.create=true
+# и передайте postgresPassword/jwtSecret через --set или отдельный
+# НЕ-коммитящийся values-файл.
+secrets:
+  create: false
+  postgresPassword: ""
+  jwtSecret: ""
+  existingSecretName: adminpanel-secrets
+
+networkPolicy:
+  enabled: true
+  # Label namespace, где работает ingress-контроллер (обычно у ingress-nginx
+  # это ns "ingress-nginx"). Нужен, чтобы разрешить ingress-контроллеру трафик
+  # до web — без правильного значения NetworkPolicy может заблокировать вход
+  # снаружи. Проверьте: kubectl get ns --show-labels
+  ingressNamespaceLabel: "kubernetes.io/metadata.name=ingress-nginx"
+
+app:
+  jwtExpirationMinutes: 480
+  frontendLogRetentionDays: 7

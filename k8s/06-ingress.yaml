@@ -1,0 +1,44 @@
+# Внешний доступ к панели. Рассчитано на ingress-nginx (ingressClassName: nginx) —
+# если в кластере другой ingress-контроллер, поправьте ingressClassName и
+# аннотации под него.
+#
+# ЗАМЕНИТЕ host на реальный домен панели.
+#
+# Вариант по умолчанию ниже — TLS терминируется на Ingress (нужен реальный
+# сертификат корпоративного CA в Secret adminpanel-tls, например через
+# cert-manager или руками: kubectl create secret tls adminpanel-tls
+# --cert=... --key=... -n nrd-business-panel), а до пода трафик идёт по
+# простому HTTP на порт 80 (backend-protocol по умолчанию — HTTP). Это проще
+# и предсказуемее, чем гонять самоподписанный сертификат из
+# nginx/generate-cert.sh наружу через Ingress.
+#
+# Если вместо этого нужен end-to-end TLS до самого пода (Ingress тоже по
+# HTTPS достукивается до Service :443, где у пода самоподписанный сертификат) —
+# раскомментируйте аннотации backend-protocol/ssl-verify ниже и укажите
+# targetPort: 443 у backend .service.port в правиле.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: adminpanel
+  namespace: nrd-business-panel
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "25m" # см. client_max_body_size 25m в common-locations.conf / spring.servlet.multipart.max-file-size
+    # nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    # nginx.ingress.kubernetes.io/proxy-ssl-verify: "false" # самоподписанный сертификат пода — verify включать не за чем
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - nrd-business-panel.dev002.local # ЗАМЕНИТЕ на реальный домен
+      secretName: adminpanel-tls
+  rules:
+    - host: nrd-business-panel.dev002.local # ЗАМЕНИТЕ на реальный домен
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 80

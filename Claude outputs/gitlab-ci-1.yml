@@ -1,0 +1,178 @@
+# Подключаем общий шаблон пайплайна (в него входит sonar-проверка и прочие
+# стандартные стадии, принятые в организации) — как в multibank-transit.
+include:
+  - project: 'devops/svd/ci-templates'
+    ref: 4.1.0
+    file: '/full_ci.yml'
+
+# Пайплайн живёт в самом целевом проекте — gitlab.dev002.local/Smolinag/nrd-business-panel.
+# Переносит содержимое стороннего GitHub-репозитория (https://github.com/XMD5X/NRD,
+# ветка main) поверх этого же проекта: git push --mirror заменяет ветки/теги
+# проекта на то, что реально есть в GitHub.
+#
+# Раз файл лежит в самом целевом проекте — CI_JOB_TOKEN и так имеет права на
+# push в этот же проект, отдельно настраивать Settings -> CI/CD -> Token Access
+# не нужно (это нужно было бы, только если бы пайплайн жил в ДРУГОМ проекте).
+# Единственное условие: пользователь, запустивший job вручную, должен иметь
+# роль не ниже Developer с правом push на ветку — если ветка защищена
+# (Settings -> Repository -> Protected branches), там должно быть разрешено
+# "Allowed to push" для его роли, иначе push всё равно упадёт с 403/412.
+#
+# ВАЖНО — САМОСТИРАНИЕ .gitlab-ci.yml:
+# В GitHub-источнике этого файла нет (это чисто GitLab-артефакт), поэтому
+# "голый" git push --mirror стёр бы .gitlab-ci.yml из ветки вместе со всем
+# остальным, что есть в GitLab, но нет в GitHub, — и следующий запуск
+# пайплайна был бы уже неоткуда брать. Поэтому job сохраняет .gitlab-ci.yml
+# ДО mirror-push (из уже расчекаученного GitLab_CI текущего проекта) и
+# возвращает его отдельным обычным коммитом СРАЗУ ПОСЛЕ mirror-push.
+#
+# ВАЖНО — MIRROR ЗАТИРАЕТ ЛИШНЕЕ:
+# git push --mirror удаляет в целевом проекте любые ветки и теги, которых
+# нет в источнике. Если в nrd-business-panel уже заведены свои ветки, которых
+# никогда не было в GitHub (например, локальные feature-ветки), они будут
+# УДАЛЕНЫ этим job'ом. Убедитесь, что это действительно ожидаемо, прежде чем
+# нажимать Run на этом job'е (он ручной специально, см. rules ниже).
+
+variables:
+  SOURCE_REPO_URL: https://github.com/XMD5X/NRD.git
+  # Прокси для выхода во внешний интернет (github.com) с раннера — тот же,
+  # что используется в multibank-transit; до самого GitLab прокси не нужен,
+  # это внутренний адрес.
+  PROXY: http://s001as-c-squid.dev002.local:3128
+  # Куда пушим собранные образы backend/frontend — ЗАМЕНИТЕ, если используете
+  # не repo.dev002.local (тот же registry, что и у образа Mirror-job'а выше).
+  IMAGE_REGISTRY: repo.dev002.local/nrd-business-panel
+  HELM_CHART_PATH: k8s/helm/nrd-business-panel
+  HELM_RELEASE_NAME: adminpanel
+  HELM_NAMESPACE: nrd-business-panel
+
+"Mirror GitHub -> GitLab":
+  image: repo.dev002.local/devops-svd-infrastructure-docker-dev/ssh:1.1.0
+  stage: build
+  tags:
+    - docker_fct_dev
+  script:
+    # GIT_STRATEGY по умолчанию (clone) — в $CI_PROJECT_DIR уже лежит текущий
+    # .gitlab-ci.yml, его и сохраняем на будущее до того, как перетрём проект.
+    - mkdir -p /tmp/keep
+    - cp .gitlab-ci.yml /tmp/keep/.gitlab-ci.yml
+
+    - rm -rf /tmp/mirror.git
+    - git clone --mirror -c "http.proxy=$PROXY" -c "https.proxy=$PROXY" "$SOURCE_REPO_URL" /tmp/mirror.git
+    - cd /tmp/mirror.git
+    - git push --mirror "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+
+    # .gitlab-ci.yml только что стёрло mirror-push'ем (в GitHub его нет) —
+    # возвращаем обычным коммитом поверх результата, иначе следующий запуск
+    # пайплайна будет неоткуда взять.
+    - rm -rf /tmp/restore
+    - git clone "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" /tmp/restore
+    - cp /tmp/keep/.gitlab-ci.yml /tmp/restore/.gitlab-ci.yml
+    - cd /tmp/restore
+    - git config user.email "ci@dev002.local"
+    - git config user.name "GitLab CI mirror job"
+    - git add .gitlab-ci.yml
+    - git diff --cached --quiet || git commit -m "chore: restore .gitlab-ci.yml after mirror sync from GitHub"
+    - git diff --cached --quiet || git push
+  rules:
+    # Ручной запуск по кнопке (Pipelines -> Run) — не хотим тянуть чужой
+    # репозиторий и перезаписывать текущий проект автоматически на каждый чих.
+    # Для регулярной синхронизации без ручного нажатия добавьте в GitLab
+    # отдельное Pipeline Schedule (CI/CD -> Schedules) на этот же пайплайн —
+    # запланированный запуск тоже попадёт под это правило и должен быть явно
+    # подтверждён, либо смените when: manual на when: always для schedule-веток,
+    # если решите автоматизировать.
+    - when: manual
+
+# ---------------------------------------------------------------------------
+# Сборка образов и деплой в Kubernetes через Helm-чарт (см. k8s/helm/
+# в этом же репозитории). Оба блока ниже — ручной запуск (when: manual), как
+# и Mirror-job выше, и оба зависят от stage: у себя (build/deploy). Если
+# `full_ci.yml` (см. include в начале файла) уже определяет свой список
+# stages, названия ниже ("build", "deploy") должны совпадать с ним —
+# при ошибке валидации "job's stage does not exist" поправьте под реальные
+# имена стадий вашего шаблона.
+#
+# ВАЖНО про kaniko: сборка образов ниже через kaniko (executor из
+# gcr.io/kaniko-project), а не через Docker-in-Docker — kaniko не требует
+# privileged-раннера и доступа к docker.sock, что обычно проще согласовать
+# с ИБ. Если у вас уже настроен DinD-раннер под docker_fct_dev (как в
+# Mirror-job'е) — можно заменить на обычный `docker build && docker push`,
+# смысл сборки от этого не изменится.
+#
+# Если gcr.io недоступен с раннера (как и с github.com, вероятно нужен
+# прокси или зеркало во внутреннем registry) — зазеркальте образ
+# kaniko-project/executor в repo.dev002.local и поправьте image: ниже.
+#
+# ОБЯЗАТЕЛЬНАЯ CI/CD-переменная (заведите в Settings -> CI/CD -> Variables,
+# Protected + Masked, тип File или обычная — см. комментарий у каждого job'а):
+#   DOCKER_AUTH_CONFIG — docker config.json с учётными данными для push в
+#     IMAGE_REGISTRY, например:
+#     {"auths":{"repo.dev002.local":{"auth":"<base64(user:password)>"}}}
+#   KUBE_CONFIG_B64 — base64 от kubeconfig с доступом в целевой кластер
+#     (namespace nrd-business-panel), например: cat ~/.kube/config | base64 -w0
+
+"Build backend image":
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: [""]
+  script:
+    - mkdir -p /kaniko/.docker
+    - echo "${DOCKER_AUTH_CONFIG}" > /kaniko/.docker/config.json
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}/backend"
+      --dockerfile "${CI_PROJECT_DIR}/backend/Dockerfile"
+      --destination "${IMAGE_REGISTRY}/backend:${CI_COMMIT_SHORT_SHA}"
+      --destination "${IMAGE_REGISTRY}/backend:latest"
+  rules:
+    - when: manual
+
+"Build frontend image":
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: [""]
+  script:
+    # frontend/dist-prebuilt должен быть уже собран и закоммичен (npm ci &&
+    # npm run build, см. build_and_export.bat в корне репозитория) — контекст
+    # сборки образа берёт его как есть, сама сборка статики внутри CI не
+    # выполняется (см. комментарий в frontend/Dockerfile про то, почему сборка
+    # именно этого фронтенда внутри контейнера нестабильна).
+    - mkdir -p /kaniko/.docker
+    - echo "${DOCKER_AUTH_CONFIG}" > /kaniko/.docker/config.json
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/frontend/Dockerfile"
+      --destination "${IMAGE_REGISTRY}/frontend:${CI_COMMIT_SHORT_SHA}"
+      --destination "${IMAGE_REGISTRY}/frontend:latest"
+  rules:
+    - when: manual
+
+"Deploy (helm upgrade)":
+  stage: deploy
+  # ЗАМЕНИТЕ образ, если Docker Hub недоступен с раннера (как и с gcr.io/
+  # github.com выше, вероятно нужно зеркало во внутреннем registry) —
+  # нужен любой образ с helm и kubectl.
+  image: alpine/helm:3.16.2
+  needs:
+    - "Build backend image"
+    - "Build frontend image"
+  before_script:
+    - mkdir -p ~/.kube
+    - echo "${KUBE_CONFIG_B64}" | base64 -d > ~/.kube/config
+  script:
+    - helm upgrade --install "${HELM_RELEASE_NAME}" "${HELM_CHART_PATH}"
+      --namespace "${HELM_NAMESPACE}" --create-namespace
+      --set image.registry="${IMAGE_REGISTRY}"
+      --set image.backend.tag="${CI_COMMIT_SHORT_SHA}"
+      --set image.frontend.tag="${CI_COMMIT_SHORT_SHA}"
+    # Секрет adminpanel-secrets (пароль БД, JWT-секрет) сюда намеренно НЕ
+    # заводится этим job'ом — см. helm/nrd-business-panel/README.md,
+    # раздел "Секреты": он создаётся один раз вручную командой kubectl
+    # create secret и дальше просто переиспользуется каждым деплоем.
+    # Домен (ingress.host), storage class'ы и включение HPA/NetworkPolicy —
+    # берутся из values.yaml чарта; переопределите через --set здесь, если
+    # они отличаются от захардкоженных в values.yaml по умолчанию значений.
+  rules:
+    - when: manual

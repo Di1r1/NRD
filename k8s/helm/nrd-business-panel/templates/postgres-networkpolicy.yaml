@@ -1,0 +1,21 @@
+{{- if .Values.networkPolicy.enabled }}
+# postgres принимает трафик только от backend — как и в docker-compose, где
+# порт 5432 не пробрасывался наружу вообще.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres
+  namespace: {{ include "adminpanel.namespace" . }}
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: backend
+      ports:
+        - port: 5432
+{{- end }}

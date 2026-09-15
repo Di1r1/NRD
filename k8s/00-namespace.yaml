@@ -1,0 +1,8 @@
+# Отдельный namespace под приложение — как в docker-compose.yml (name: adminpanel),
+# только термин в k8s другой. Все остальные манифесты рассчитаны на этот namespace
+# (metadata.namespace: nrd-business-panel) — либо примените их через
+# `kubectl apply -n nrd-business-panel -f k8s/`, либо явно проставьте namespace ниже.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nrd-business-panel
