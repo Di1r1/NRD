@@ -1,0 +1,460 @@
+<title>Роадмап НРД-панели</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#f4f6f8;
+    --surface:#ffffff;
+    --surface-2:#edf0f4;
+    --text:#1a2130;
+    --text-dim:#5c6579;
+    --border:#dde2ea;
+    --accent:#0d7d8a;
+    --accent-strong:#095e68;
+    --accent-soft:#e1f2f2;
+    --success:#1e8a4c;
+    --success-soft:#e3f6e9;
+    --warning:#a8690a;
+    --warning-soft:#faf0dc;
+    --neutral-strong:#5c6579;
+    --neutral-soft:#eceef2;
+    --risk:#ad3347;
+    --risk-soft:#fbe8ec;
+    --shadow: 0 1px 2px rgba(20,26,40,.04), 0 8px 24px -12px rgba(20,26,40,.12);
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#10141b;
+      --surface:#171d27;
+      --surface-2:#1e2530;
+      --text:#e7eaf1;
+      --text-dim:#98a1b5;
+      --border:#2a3242;
+      --accent:#33c6c2;
+      --accent-strong:#5fdad6;
+      --accent-soft:rgba(51,198,194,.14);
+      --success:#48c37c;
+      --success-soft:rgba(72,195,124,.14);
+      --warning:#e0a53f;
+      --warning-soft:rgba(224,165,63,.14);
+      --neutral-strong:#98a1b5;
+      --neutral-soft:#232b38;
+      --risk:#e2758a;
+      --risk-soft:rgba(226,117,138,.14);
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.55);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#10141b;
+    --surface:#171d27;
+    --surface-2:#1e2530;
+    --text:#e7eaf1;
+    --text-dim:#98a1b5;
+    --border:#2a3242;
+    --accent:#33c6c2;
+    --accent-strong:#5fdad6;
+    --accent-soft:rgba(51,198,194,.14);
+    --success:#48c37c;
+    --success-soft:rgba(72,195,124,.14);
+    --warning:#e0a53f;
+    --warning-soft:rgba(224,165,63,.14);
+    --neutral-strong:#98a1b5;
+    --neutral-soft:#232b38;
+    --risk:#e2758a;
+    --risk-soft:rgba(226,117,138,.14);
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.55);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:"IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+    padding-inline:20px;
+    padding-block:32px 64px;
+  }
+  .mono{font-family:"IBM Plex Mono","SF Mono",Consolas,monospace;}
+  h1,h2,h3{text-wrap:balance; font-weight:600; margin:0;}
+  p{margin:0;}
+  a{color:var(--accent);}
+
+  .page{max-width:920px; margin-inline:auto; display:flex; flex-direction:column; gap:40px;}
+
+  /* ---------- Hero ---------- */
+  .hero{display:flex; flex-direction:column; gap:18px;}
+  .kicker{
+    font-family:"IBM Plex Mono",monospace; font-size:12.5px; letter-spacing:.11em;
+    color:var(--accent); font-weight:600; text-transform:uppercase;
+  }
+  .hero h1{font-size:clamp(28px,4vw,38px); letter-spacing:-.01em;}
+  .lede{color:var(--text-dim); font-size:16px; line-height:1.55; max-width:62ch;}
+
+  .pipeline{
+    display:flex; align-items:center; margin-top:6px;
+    border:1px solid var(--border); border-radius:14px; background:var(--surface);
+    box-shadow:var(--shadow); padding:18px 20px; gap:0; overflow-x:auto;
+  }
+  .pnode{display:flex; align-items:center; gap:10px; flex:1; min-width:150px;}
+  .pdot{
+    width:13px; height:13px; border-radius:50%; flex:none; border:2px solid var(--neutral-strong);
+    background:var(--surface);
+  }
+  .pnode.done .pdot{background:var(--success); border-color:var(--success);}
+  .pnode.current .pdot{
+    background:var(--warning); border-color:var(--warning);
+    box-shadow:0 0 0 4px var(--warning-soft);
+  }
+  .ptext{display:flex; flex-direction:column; gap:2px;}
+  .ptext .plabel{font-size:13.5px; font-weight:600;}
+  .ptext .pstate{font-size:11.5px; color:var(--text-dim); font-family:"IBM Plex Mono",monospace;}
+  .pline{height:2px; flex:.6; background:var(--border); margin:0 2px; min-width:24px;}
+  .pline.done{background:var(--success);}
+
+  /* ---------- quick nav ---------- */
+  .quicknav{
+    position:sticky; top:env(safe-area-inset-top,0px); z-index:5;
+    display:flex; gap:4px; flex-wrap:wrap;
+    background:color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    border:1px solid var(--border); border-radius:12px; padding:6px;
+    margin-top:-14px;
+  }
+  .quicknav a{
+    font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--text-dim);
+    text-decoration:none; padding:7px 12px; border-radius:8px; white-space:nowrap;
+  }
+  .quicknav a:hover{background:var(--surface-2); color:var(--text);}
+
+  /* ---------- stats ---------- */
+  .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:14px;}
+  .stat{
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    padding:18px 18px 16px; box-shadow:var(--shadow);
+  }
+  .stat .num{
+    font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;
+    font-size:32px; font-weight:600; line-height:1;
+  }
+  .stat.done .num{color:var(--success);}
+  .stat.wait .num{color:var(--warning);}
+  .stat.todo .num{color:var(--neutral-strong);}
+  .stat .label{margin-top:8px; font-size:13px; color:var(--text-dim);}
+
+  /* ---------- section shell ---------- */
+  section{display:flex; flex-direction:column; gap:18px; scroll-margin-top:70px;}
+  .section-head{display:flex; align-items:baseline; gap:10px;}
+  .section-tag{
+    font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--accent);
+    font-weight:600; letter-spacing:.04em;
+  }
+  .section-head h2{font-size:21px;}
+  .section-sub{color:var(--text-dim); font-size:14.5px; margin-top:-8px;}
+
+  /* ---------- status grid ---------- */
+  .status-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:10px;}
+  .status-tile{
+    display:flex; align-items:flex-start; gap:11px;
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:13px 14px;
+  }
+  .led{width:9px; height:9px; border-radius:50%; margin-top:6px; flex:none;}
+  .status-tile.done .led{background:var(--success); box-shadow:0 0 0 3px var(--success-soft);}
+  .status-tile.wait .led{background:var(--warning); box-shadow:0 0 0 3px var(--warning-soft);}
+  .status-tile.todo .led{background:var(--neutral-strong); box-shadow:0 0 0 3px var(--neutral-soft);}
+  .st-title{font-size:13.5px; font-weight:600;}
+  .st-note{font-size:12.5px; color:var(--text-dim); margin-top:2px; line-height:1.4;}
+
+  /* ---------- area cards (done) ---------- */
+  .card-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:14px;}
+  .area-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    padding:18px 18px 16px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:12px;
+  }
+  .area-head{display:flex; align-items:center; gap:9px;}
+  .area-idx{
+    font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--accent-strong);
+    background:var(--accent-soft); border-radius:6px; padding:3px 7px; font-weight:600;
+  }
+  .area-title{font-size:14.5px; font-weight:600;}
+  .checklist{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:9px;}
+  .checklist li{display:flex; gap:9px; font-size:13.5px; line-height:1.5; color:var(--text);}
+  .checklist li::before{
+    content:"✓"; flex:none; width:17px; height:17px; border-radius:5px;
+    background:var(--success-soft); color:var(--success); font-size:11px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; margin-top:2px;
+  }
+  .checklist code, .area-card code, .stepper code, .plainlist code{
+    font-family:"IBM Plex Mono",monospace; font-size:.92em; background:var(--surface-2);
+    padding:1px 5px; border-radius:4px; color:var(--accent-strong);
+  }
+
+  /* ---------- waiting cards ---------- */
+  .wait-card{
+    background:var(--warning-soft); border:1px solid color-mix(in srgb, var(--warning) 35%, transparent);
+    border-radius:14px; padding:18px; display:flex; gap:13px; align-items:flex-start;
+  }
+  .wait-card .wicon{
+    width:30px; height:30px; border-radius:9px; background:var(--warning); color:var(--surface);
+    display:flex; align-items:center; justify-content:center; flex:none; font-weight:700; font-size:15px;
+  }
+  .wait-card h3{font-size:14.5px;}
+  .wait-card p{font-size:13.5px; color:var(--text); line-height:1.55; margin-top:5px;}
+  .note-card{
+    background:var(--surface-2); border:1px solid var(--border); border-radius:14px;
+    padding:16px 18px; font-size:13.5px; color:var(--text-dim); line-height:1.55;
+  }
+
+  /* ---------- stepper (3.1) ---------- */
+  .stepper{display:flex; flex-direction:column;}
+  .step{display:grid; grid-template-columns:32px 1fr; column-gap:14px;}
+  .step .rail{display:flex; flex-direction:column; align-items:center;}
+  .step .node{
+    width:28px; height:28px; border-radius:50%; border:2px solid var(--accent);
+    color:var(--accent-strong); font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:12.5px;
+    display:flex; align-items:center; justify-content:center; background:var(--surface); flex:none;
+  }
+  .step .line{width:2px; flex:1; background:var(--border); margin:2px 0;}
+  .step:last-child .line{display:none;}
+  .step-body{padding-bottom:22px;}
+  .step-body p{font-size:13.5px; line-height:1.6; color:var(--text);}
+  .step-body strong{color:var(--text);}
+
+  /* ---------- plain todo list (3.2 / 3.3) ---------- */
+  .plainlist{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px;}
+  .plainlist li{
+    display:flex; gap:10px; font-size:13.5px; line-height:1.55; color:var(--text);
+    background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:11px 13px;
+  }
+  .plainlist li::before{
+    content:""; flex:none; width:8px; height:8px; border-radius:50%; margin-top:6px;
+    border:2px solid var(--neutral-strong); background:transparent;
+  }
+
+  /* ---------- risks ---------- */
+  .risk-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px;}
+  .risk-list li{
+    display:flex; gap:11px; background:var(--risk-soft); border:1px solid color-mix(in srgb, var(--risk) 35%, transparent);
+    border-radius:12px; padding:13px 15px; font-size:13.5px; line-height:1.55; color:var(--text);
+  }
+  .risk-list li::before{content:"!"; flex:none; width:19px; height:19px; border-radius:50%;
+    background:var(--risk); color:var(--surface); font-weight:700; font-size:12px;
+    display:flex; align-items:center; justify-content:center; margin-top:1px;}
+
+  footer{
+    border-top:1px solid var(--border); padding-top:18px; margin-top:8px;
+    font-size:12.5px; color:var(--text-dim); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  }
+  footer .mono{color:var(--text-dim);}
+
+  @media (max-width:640px){
+    .stats{grid-template-columns:1fr;}
+    .status-grid{grid-template-columns:1fr;}
+    .card-grid{grid-template-columns:1fr;}
+    .pipeline{flex-direction:column; align-items:stretch;}
+    .pline{width:2px; height:20px; flex:none; margin:2px 0 2px 6px;}
+  }
+</style>
+
+<div class="page">
+
+  <header class="hero">
+    <p class="kicker">DevOps · Роадмап проекта</p>
+    <h1>НРД — Бизнес-панель</h1>
+    <p class="lede">Свод по разработке приложения, репозиторию и доступам, CI/CD, согласованиям с ИБ и бизнесом и переходу стенда в Kubernetes — что сделано, что в работе и что осталось.</p>
+
+    <div class="pipeline" aria-label="Стадии проекта">
+      <div class="pnode done"><span class="pdot"></span><span class="ptext"><span class="plabel">Разработка MVP</span><span class="pstate">готово</span></span></div>
+      <div class="pline done"></div>
+      <div class="pnode done"><span class="pdot"></span><span class="ptext"><span class="plabel">Согласования</span><span class="pstate">ИБ + бизнес получены</span></span></div>
+      <div class="pline"></div>
+      <div class="pnode current"><span class="pdot"></span><span class="ptext"><span class="plabel">Kubernetes · dev</span><span class="pstate">MR ждёт согласования</span></span></div>
+      <div class="pline"></div>
+      <div class="pnode"><span class="pdot"></span><span class="ptext"><span class="plabel">Test / Prod</span><span class="pstate">не начато</span></span></div>
+    </div>
+  </header>
+
+  <nav class="quicknav">
+    <a href="#overview">Статус</a>
+    <a href="#done">Сделано</a>
+    <a href="#progress">В работе</a>
+    <a href="#todo">Осталось</a>
+    <a href="#risks">Риски</a>
+  </nav>
+
+  <section class="stats" id="overview">
+    <div class="stat done"><div class="num">6</div><div class="label">направлений готово</div></div>
+    <div class="stat wait"><div class="num">1</div><div class="label">ждёт согласования извне</div></div>
+    <div class="stat todo"><div class="num">1</div><div class="label">направление не начато</div></div>
+  </section>
+
+  <section class="status-grid">
+    <div class="status-tile done"><span class="led"></span><span><span class="st-title">Приложение (MVP)</span><div class="st-note">Готово, продемонстрировано бизнесу</div></span></div>
+    <div class="status-tile done"><span class="led"></span><span><span class="st-title">Репозиторий и доступ</span><div class="st-note">Готово — перенесено под корпоративную СУЗ</div></span></div>
+    <div class="status-tile done"><span class="led"></span><span><span class="st-title">CI/CD (сборка, sonar, доставка в тест)</span><div class="st-note">Готово, пайплайн ручной (не авто)</div></span></div>
+    <div class="status-tile done"><span class="led"></span><span><span class="st-title">Kubernetes — манифесты / чарт</span><div class="st-note">Готово (Helm-чарт, полный набор)</div></span></div>
+    <div class="status-tile wait"><span class="led"></span><span><span class="st-title">Kubernetes — кластер в dev</span><div class="st-note">Подан MR, ожидает согласования</div></span></div>
+    <div class="status-tile done"><span class="led"></span><span><span class="st-title">Согласование с ИБ</span><div class="st-note">Получено — проект согласован</div></span></div>
+    <div class="status-tile done"><span class="led"></span><span><span class="st-title">Согласование с бизнесом</span><div class="st-note">Пройдено — бизнес готов работать</div></span></div>
+    <div class="status-tile todo"><span class="led"></span><span><span class="st-title">Мониторинг, backup, нагрузочное тестирование</span><div class="st-note">Не начато</div></span></div>
+  </section>
+
+  <section id="done">
+    <div class="section-head"><span class="section-tag">§1</span><h2>Что сделано</h2></div>
+
+    <div class="card-grid">
+      <div class="area-card">
+        <div class="area-head"><span class="area-idx">1.1</span><span class="area-title">Приложение — функциональность</span></div>
+        <ul class="checklist">
+          <li>Веб-панель (Spring Boot + React) для функциональных администраторов — управление и запуск скриптов (PowerShell/Python), включая выдачу прав доступа на счета для эталонных ролей</li>
+          <li>Аутентификация JWT, роль «подтверждающий изменения» для согласования критичных операций</li>
+          <li>История действий и входов (audit trail), выгрузка в CEF (ArcSight) для SIEM с читаемой датой в <code>rt=</code></li>
+          <li>Мониторинг ресурсов backend/frontend (CPU, RAM, диск, БД, статика) с автообновлением раз в 10 секунд</li>
+          <li>Индикация пользователей онлайн</li>
+          <li>Выгрузка логов: backend, frontend, access-логи nginx, CEF — единое именование (дата + тип), без искажения кодировки</li>
+          <li>Редактирование скриптов прямо в браузере (<code>/admin/scripts</code>) с резервной копией <code>.bak</code></li>
+          <li>Security-hardening: секреты только через переменные окружения, non-root контейнер backend, rate limiting на логине, security-заголовки nginx</li>
+        </ul>
+      </div>
+
+      <div class="area-card">
+        <div class="area-head"><span class="area-idx">1.2</span><span class="area-title">Git-репозиторий, доступ и владение</span></div>
+        <ul class="checklist">
+          <li>Создан git-проект, разработка ведётся в GitHub (<code>XMD5X/NRD</code>, ветка <code>main</code>)</li>
+          <li>Создан корпоративный проект в GitLab (<code>gitlab.dev002.local/Smolinag/nrd-business-panel</code>), настроен доступ</li>
+          <li>Проект переведён под корпоративную СУЗ — доступ управляется централизованно, больше не завязан на одну личную учётную запись</li>
+        </ul>
+      </div>
+
+      <div class="area-card">
+        <div class="area-head"><span class="area-idx">1.3</span><span class="area-title">CI/CD</span></div>
+        <ul class="checklist">
+          <li>Пайплайн зеркалирования GitHub → корпоративный GitLab, с защитой собственного <code>.gitlab-ci.yml</code> от затирания при синхронизации</li>
+          <li>Подключён общий CI-шаблон организации — сборка проходит корпоративный SonarQube-чек</li>
+          <li>Настроена доставка собранной версии до тестового контура</li>
+          <li>Добавлены job'ы сборки образов (kaniko) и деплоя в Kubernetes (<code>helm upgrade</code>) — пока ручные</li>
+        </ul>
+      </div>
+
+      <div class="area-card">
+        <div class="area-head"><span class="area-idx">1.4</span><span class="area-title">Перевод под Kubernetes</span></div>
+        <ul class="checklist">
+          <li>Полный комплект манифестов: Namespace, Secret, ConfigMap, StatefulSet (postgres), Deployment (backend, web), PVC, Ingress</li>
+          <li>Доведено до Helm-чарта: версионируемые релизы, параметры через <code>values.yaml</code>, HPA (web), PodDisruptionBudget, NetworkPolicy, security-контексты контейнеров</li>
+          <li>Архитектурные ограничения задокументированы осознанно, не заметены под ковёр (см. §3)</li>
+          <li>Подан merge request на создание Kubernetes-кластера в dev — ожидает согласования</li>
+          <li>Текущий стенд развёрнут в корпоративной среде на dev-контуре</li>
+        </ul>
+      </div>
+
+      <div class="area-card">
+        <div class="area-head"><span class="area-idx">1.5</span><span class="area-title">Согласования</span></div>
+        <ul class="checklist">
+          <li>Направлено официальное письмо в ИБ с описанием решения, архитектуры и ссылкой на репозиторий</li>
+          <li><strong>Получен ответ ИБ — проект согласован</strong>, дальнейшая разработка разрешена</li>
+          <li>MVP продемонстрирован бизнесу — готовность работать подтверждена; согласование пройдено с обеих сторон</li>
+        </ul>
+      </div>
+
+      <div class="area-card">
+        <div class="area-head"><span class="area-idx">1.6</span><span class="area-title">Документация</span></div>
+        <ul class="checklist">
+          <li>HLD (архитектура и инфраструктура), описание backend и frontend, модель данных</li>
+          <li>Обзор ИТ-решения и customer journey map (несколько версий по мере доработки)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="progress">
+    <div class="section-head"><span class="section-tag">§2</span><h2>В работе / ожидает решения извне</h2></div>
+
+    <div class="wait-card">
+      <span class="wicon">MR</span>
+      <div>
+        <h3>Kubernetes-кластер в dev</h3>
+        <p>Merge request подан, ждём согласования инфраструктурной команды. До этого момента развернуть приложение в k8s нельзя чисто технически — самого кластера ещё нет, хотя весь набор манифестов и Helm-чарта уже готов.</p>
+      </div>
+    </div>
+
+    <div class="note-card">
+      Согласование с ИБ на данный момент получено (см. §1.5). Если по его итогам ИБ выдвинула конкретные условия или требования к архитектуре (например, по схеме генерации и подтверждения пакетов ЭЦП) — они дописываются сюда и переносятся в §3, как только известны в деталях.
+    </div>
+  </section>
+
+  <section id="todo">
+    <div class="section-head"><span class="section-tag">§3</span><h2>Что осталось сделать</h2></div>
+
+    <div>
+      <div class="area-head" style="margin-bottom:14px;"><span class="area-idx">3.1</span><span class="area-title">Kubernetes — после получения кластера</span></div>
+      <p class="section-sub" style="margin-top:-6px; margin-bottom:14px;">Плановая последовательность шагов — по порядку, каждый следующий зависит от предыдущего.</p>
+      <div class="stepper">
+        <div class="step">
+          <div class="rail"><div class="node">1</div><div class="line"></div></div>
+          <div class="step-body"><p><strong>Установить приложение в dev-кластере</strong> (<code>helm install</code>) сразу после его создания — развернуть Helm-чарт, завести секреты (пароль БД, JWT), настроить <code>values.yaml</code> под конкретный кластер.</p></div>
+        </div>
+        <div class="step">
+          <div class="rail"><div class="node">2</div><div class="line"></div></div>
+          <div class="step-body"><p>Подтвердить/настроить ReadWriteMany storage class — без него не заработают access-логи nginx (общий том между backend и web).</p></div>
+        </div>
+        <div class="step">
+          <div class="rail"><div class="node">3</div><div class="line"></div></div>
+          <div class="step-body"><p>Настроить постоянный TLS-сертификат на Ingress через cert-manager или корпоративный CA (сейчас в манифестах — заглушка под самоподписанный сертификат).</p></div>
+        </div>
+        <div class="step">
+          <div class="rail"><div class="node">4</div><div class="line"></div></div>
+          <div class="step-body"><p><strong>Настроить git (CI/CD-пайплайн) на работу с k8s-кластером</strong> после развёртывания стенда — донастроить доступ CI к кластеру и registry (переменные <code>KUBE_CONFIG_B64</code>, <code>DOCKER_AUTH_CONFIG</code> — ещё не заведены), чтобы job'ы сборки и деплоя вообще могли достучаться до dev-кластера.</p></div>
+        </div>
+        <div class="step">
+          <div class="rail"><div class="node">5</div><div class="line"></div></div>
+          <div class="step-body"><p><strong>Провести тестовый пайплайн на развёртывание в dev-контуре</strong> — запустить job <code>Deploy (helm upgrade)</code> из GitLab CI (не просто <code>helm install</code> руками, как в шаге 1) и убедиться, что автодеплой через git реально работает end-to-end.</p></div>
+        </div>
+        <div class="step">
+          <div class="rail"><div class="node">6</div><div class="line"></div></div>
+          <div class="step-body"><p><strong>Проверить работоспособность</strong> приложения в dev-кластере — стенд в Kubernetes должен работать так же, как текущий docker-compose стенд.</p></div>
+        </div>
+        <div class="step">
+          <div class="rail"><div class="node">7</div><div class="line"></div></div>
+          <div class="step-body"><p><strong>Если проверка успешна — оформить ЗнИ</strong> на мощности и сетевые связности для test- и prod-контуров. До успешной проверки в dev заявка на test/prod не подаётся.</p></div>
+        </div>
+        <div class="step">
+          <div class="rail"><div class="node">8</div></div>
+          <div class="step-body"><p><strong>После выделения мощностей — переписать CI/CD-пайплайн под автодеплой.</strong> Сейчас job'ы сборки и <code>helm upgrade</code> ручные — для test/prod нужен автозапуск с раздельными <code>values-&lt;contour&gt;.yaml</code>, namespace и переменными доступа под каждый контур.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="area-head" style="margin-bottom:12px;"><span class="area-idx">3.2</span><span class="area-title">Архитектура приложения</span></div>
+      <ul class="plainlist">
+        <li>Горизонтальное масштабирование backend (сейчас жёстко 1 реплика): онлайн-статус пользователей — из памяти процесса в общее хранилище (БД/Redis), синхронизация записи файлов при редактировании скриптов. Нужно, только если потребуется больше одной реплики.</li>
+        <li>Если согласование ИБ содержало конкретные условия к архитектуре — внести их сюда по мере уточнения.</li>
+      </ul>
+    </div>
+
+    <div>
+      <div class="area-head" style="margin-bottom:12px;"><span class="area-idx">3.3</span><span class="area-title">Эксплуатационная готовность — пока не начато</span></div>
+      <ul class="plainlist">
+        <li>Мониторинг и алертинг приложения и кластера (Prometheus/Grafana или корпоративное решение)</li>
+        <li>Резервное копирование и восстановление БД (Postgres) в k8s</li>
+        <li>Нагрузочное тестирование перед переводом в прод-контур</li>
+        <li>План перехода dev → test → prod после согласований и нагрузочного тестирования</li>
+        <li>Внешний secret-manager (Vault / External Secrets Operator), если потребует политика ИБ</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="risks">
+    <div class="section-head"><span class="section-tag">§4</span><h2>Риски и открытые вопросы</h2></div>
+    <ul class="risk-list">
+      <li>Сроки перехода в Kubernetes зависят от согласования и фактического создания кластера инфраструктурной командой — вне зоны контроля проектной команды.</li>
+      <li>Наличие подходящего ReadWriteMany storage class в целевом кластере пока не подтверждено — от этого зависит доступность выгрузки access-логов nginx в k8s-варианте.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>НРД — Бизнес-панель · внутренний роадмап проекта</span>
+    <span class="mono">docs/ROADMAP.md · обновлено 15.09.2026</span>
+  </footer>
+
+</div>
