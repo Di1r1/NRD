@@ -9,7 +9,7 @@
 # собранную командой `npm ci && npm run build` в frontend/ и скопированную
 # в frontend/dist-prebuilt (см. build_and_export.bat / инструкцию в README —
 # пересобрать заново после изменений в frontend/src нужно так же вручную).
-FROM nginx:1.27-alpine
+FROM repo.dev002.local/dockerio/library/nginx:1.27-alpine
 
 # openssl нужен только для генерации самоподписанного TLS-сертификата при
 # первом запуске (см. nginx/generate-cert.sh) — библиотеки самого TLS в nginx
